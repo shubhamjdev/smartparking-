@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ANPR Dashboard — SmartCam</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;600;700&family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#030810;--surface:#08121e;--surface2:#0c1a2b;--border:#152d47;
+  --accent:#00c8f0;--danger:#ff1a3c;--success:#00f07a;--warn:#ffc800;
+  --text:#b8d8ef;--muted:#3d6a8a;
+  --plate-bg:#fffde8;--plate-text:#111;--plate-blue:#1532c8;
+  --glow-a:0 0 24px rgba(0,200,240,.25);--glow-d:0 0 32px rgba(255,26,60,.55)
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,200,240,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,200,240,.025) 1px,transparent 1px);background-size:44px 44px;pointer-events:none;z-index:0}
+.wrap{max-width:1440px;margin:0 auto;padding:0 22px;position:relative;z-index:1}
+header{border-bottom:1px solid var(--border);padding:16px 0;background:linear-gradient(180deg,rgba(0,200,240,.06),transparent)}
+.hdr{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.logo{display:flex;align-items:center;gap:13px}
+.logo-icon{width:42px;height:42px;background:linear-gradient(135deg,var(--accent),#0055dd);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:21px;box-shadow:var(--glow-a)}
+.logo h1{font-family:'Orbitron',sans-serif;font-size:18px;font-weight:900;color:#fff;letter-spacing:2.5px}
+.logo p{font-size:10px;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-top:2px}
+.hdr-right{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:5px 13px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border:1px solid}
+.pill.ok{border-color:var(--success);color:var(--success);background:rgba(0,240,122,.07)}
+.pill.off{border-color:var(--muted);color:var(--muted);background:rgba(61,106,138,.07)}
+.pill.warn{border-color:var(--warn);color:var(--warn);background:rgba(255,200,0,.07)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:blink 1.6s infinite}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.75)}}
+
+#alertBanner{display:none;background:linear-gradient(90deg,rgba(255,26,60,.18),rgba(255,26,60,.08));border:1px solid var(--danger);border-radius:10px;margin:18px 0;padding:14px 22px;animation:aPulse 1s infinite;box-shadow:var(--glow-d)}
+@keyframes aPulse{0%,100%{border-color:var(--danger)}50%{border-color:rgba(255,26,60,.3)}}
+.alert-row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.alert-ico{font-size:26px}
+.alert-title{font-family:'Orbitron',sans-serif;font-size:13px;color:var(--danger);font-weight:700;letter-spacing:2px}
+.alert-plate{font-family:'Share Tech Mono',monospace;font-size:22px;color:#fff;font-weight:700;letter-spacing:3px}
+.alert-msg{font-size:12px;color:rgba(255,60,80,.85)}
+.ack{margin-left:auto;padding:8px 18px;background:var(--danger);color:#fff;border:none;border-radius:6px;font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:1px;cursor:pointer;transition:opacity .2s}
+.ack:hover{opacity:.75}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:14px;margin:20px 0}
+.sc{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;position:relative;overflow:hidden}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent)}
+.sc.d::before{background:var(--danger)}.sc.w::before{background:var(--warn)}.sc.s::before{background:var(--success)}.sc.p::before{background:#aa55ff}
+.sc-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px}
+.sc-val{font-family:'Orbitron',sans-serif;font-size:26px;font-weight:700;color:#fff}
+.sc-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.scan-line{position:absolute;bottom:0;left:-60%;height:1px;width:60%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:scan 3s linear infinite}
+@keyframes scan{to{left:100%}}
+
+.task-bar{display:flex;gap:10px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;margin-bottom:18px;align-items:center}
+.task-item{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:1px;text-transform:uppercase;font-weight:600}
+.task-dot{width:9px;height:9px;border-radius:50%;border:2px solid currentColor}
+.task-dot.run{background:currentColor;animation:blink 1.2s infinite}
+.task-dot.idle{background:transparent}
+.task-sep{width:1px;height:16px;background:var(--border)}
+
+/* ── OCR Upload Panel ── */
+.ocr-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:18px}
+.ocr-panel .card-title{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.ocr-panel .card-title::after{content:'';flex:1;height:1px;background:var(--border)}
+.ocr-row{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap}
+.ocr-dropzone{flex:1;min-width:220px;background:var(--bg);border:2px dashed var(--border);border-radius:8px;padding:20px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.ocr-dropzone:hover,.ocr-dropzone.drag{border-color:var(--accent);background:rgba(0,200,240,.04)}
+.ocr-dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.ocr-dropzone .dz-ico{font-size:32px;margin-bottom:8px}
+.ocr-dropzone .dz-lbl{font-family:'Share Tech Mono';font-size:11px;color:var(--muted);letter-spacing:2px}
+.ocr-dropzone .dz-sub{font-size:10px;color:var(--muted);opacity:.6;margin-top:4px}
+.ocr-preview{width:160px;background:#000;border-radius:8px;overflow:hidden;border:1px solid var(--border);aspect-ratio:4/3;display:flex;align-items:center;justify-content:center}
+.ocr-preview img{width:100%;height:100%;object-fit:cover;display:none}
+.ocr-preview .ph{color:var(--muted);font-size:11px;font-family:'Share Tech Mono';text-align:center;padding:8px}
+.ocr-result{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px 18px;min-width:200px;flex:1}
+.ocr-result .r-lbl{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+.ocr-result .r-plate{font-family:'Share Tech Mono',monospace;font-size:28px;color:#fff;letter-spacing:4px;font-weight:700;min-height:40px}
+.ocr-result .r-conf{font-size:11px;color:var(--muted);margin-top:5px}
+.ocr-result .r-region{font-size:11px;color:var(--muted);margin-top:3px}
+.ocr-actions{display:flex;flex-direction:column;gap:8px;justify-content:flex-end}
+.ocr-status{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono';font-size:11px;color:var(--muted);letter-spacing:1px;margin-top:8px}
+.ocr-status .spinner{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.api-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid rgba(0,200,240,.3);border-radius:4px;font-family:'Share Tech Mono';font-size:9px;color:var(--accent);letter-spacing:1px;margin-left:auto}
+
+.stream-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:18px}
+.stream-bar input{flex:1;min-width:220px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 13px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:13px;outline:none;transition:border-color .2s}
+.stream-bar input:focus{border-color:var(--accent)}
+.stream-bar label{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;display:block}
+
+.grid2{display:grid;grid-template-columns:1fr 370px;gap:18px;margin-bottom:20px}
+@media(max-width:1060px){.grid2{grid-template-columns:1fr}}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px}
+.card-title{font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:18px;display:flex;align-items:center;gap:10px}
+.card-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+#streamBox{background:#000;border-radius:8px;overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;position:relative;border:1px solid var(--border)}
+#streamImg{display:none;width:100%;height:100%;object-fit:cover}
+#liveBadge{display:none;position:absolute;top:9px;left:9px;background:var(--danger);color:#fff;font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:2px;padding:4px 10px;border-radius:4px;animation:blink 1s infinite}
+#streamPH{text-align:center;color:var(--muted)}
+#streamPH .ico{font-size:44px;margin-bottom:10px}
+#streamPH .lbl{font-family:'Share Tech Mono';font-size:12px;letter-spacing:2px}
+#streamPH .sub{font-size:11px;margin-top:5px;opacity:.6}
+
+/* Capture OCR from stream */
+#captureBtn{position:absolute;bottom:10px;right:10px;padding:8px 14px;background:rgba(0,200,240,.15);border:1px solid var(--accent);color:var(--accent);border-radius:6px;font-family:'Orbitron',sans-serif;font-size:9px;letter-spacing:2px;cursor:pointer;transition:all .2s;z-index:10;display:none}
+#captureBtn:hover{background:rgba(0,200,240,.3)}
+#streamCanvas{display:none}
+
+.plate-showcase{display:flex;flex-direction:column;align-items:center;gap:16px;padding:14px}
+.ind-plate{position:relative;background:var(--plate-bg);border:3px solid var(--plate-blue);border-radius:7px;padding:9px 22px;min-width:310px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.5);transition:all .35s}
+.ind-plate.stolen{border-color:var(--danger);box-shadow:0 0 36px rgba(255,26,60,.65);animation:plateDanger .8s infinite alternate}
+@keyframes plateDanger{from{transform:scale(1)}to{transform:scale(1.015)}}
+.p-strip{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:3px}
+.p-wheel{width:14px;height:14px;border:2px solid var(--plate-blue);border-radius:50%}
+.p-ind{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--plate-blue);letter-spacing:2.5px;font-weight:600}
+.p-num{font-family:'Share Tech Mono',monospace;font-size:40px;font-weight:700;color:var(--plate-text);letter-spacing:4px;line-height:1;transition:all .35s}
+.p-num.stolen{color:var(--danger)}
+.p-state{font-size:8px;color:rgba(21,50,200,.55);letter-spacing:1px;text-transform:uppercase;margin-top:3px}
+.p-bolt{position:absolute;top:50%;transform:translateY(-50%);width:9px;height:9px;background:#888;border-radius:50%;border:1px solid #555}
+.p-bolt.l{left:5px}.p-bolt.r{right:5px}
+.p-ts{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--muted)}
+.p-badge{padding:4px 13px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;border:1px solid}
+.p-badge.ok{border-color:var(--success);color:var(--success);background:rgba(0,240,122,.09)}
+.p-badge.stolen{border-color:var(--danger);color:var(--danger);background:rgba(255,26,60,.09)}
+.p-badge.wait{border-color:var(--muted);color:var(--muted);background:rgba(61,106,138,.09)}
+
+.right-panel{display:flex;flex-direction:column;gap:16px}
+.flabel{display:block;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:7px}
+.finput{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 13px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:15px;letter-spacing:2.5px;text-transform:uppercase;outline:none;transition:border-color .2s}
+.finput:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(0,200,240,.1)}
+.fgroup{margin-bottom:14px}
+.btn{width:100%;padding:11px;border:none;border-radius:8px;font-family:'Orbitron',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:all .2s;font-weight:700}
+.btn-d{background:linear-gradient(135deg,var(--danger),#aa0022);color:#fff;box-shadow:0 4px 14px rgba(255,26,60,.28)}
+.btn-d:hover{transform:translateY(-2px)}
+.btn-a{background:linear-gradient(135deg,var(--accent),#0055dd);color:var(--bg);box-shadow:0 4px 14px rgba(0,200,240,.22)}
+.btn-a:hover{transform:translateY(-2px)}
+.btn-g{background:linear-gradient(135deg,var(--success),#009944);color:var(--bg)}
+.btn-g:hover{transform:translateY(-2px)}
+.btn-sm{width:auto;padding:9px 18px;font-size:10px}
+.divider{height:1px;background:var(--border);margin:16px 0}
+.stolen-list{display:flex;flex-direction:column;gap:7px;max-height:240px;overflow-y:auto}
+.si{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;background:rgba(255,26,60,.05);border:1px solid rgba(255,26,60,.18);border-radius:6px;font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:2px}
+.si-rm{background:none;border:1px solid var(--danger);color:var(--danger);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;transition:all .2s}
+.si-rm:hover{background:var(--danger);color:#fff}
+
+.test-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px}
+.test-grp{flex:1;min-width:200px}
+.preview-box{background:#0a0d12;border-radius:8px;border:1px solid var(--border);padding:20px;display:flex;justify-content:center}
+
+.tbl-ctrl{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.srch{flex:1;min-width:180px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 13px;color:#fff;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:2px;text-transform:uppercase;outline:none;transition:border-color .2s}
+.srch:focus{border-color:var(--accent)}
+.fbtn{padding:8px 16px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:'Rajdhani',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s;letter-spacing:1px}
+.fbtn.on{border-color:var(--accent);color:var(--accent);background:rgba(0,200,240,.07)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:9px 13px;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border);font-weight:600}
+td{padding:12px 13px;border-bottom:1px solid rgba(21,45,71,.5);font-size:13px;transition:background .2s}
+tr:hover td{background:rgba(0,200,240,.025)}
+tr:last-child td{border-bottom:none}
+.pc{font-family:'Share Tech Mono',monospace;font-size:14px;letter-spacing:3px;color:#fff;font-weight:700}
+.pc.stolen{color:var(--danger)}
+.sdot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:7px}
+.sdot.ok{background:var(--success)}.sdot.st{background:var(--danger)}
+.tc{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted)}
+.empty{text-align:center;padding:36px;color:var(--muted)}
+.empty .ei{font-size:36px;margin-bottom:10px}
+.empty .et{font-size:13px;letter-spacing:2px}
+
+#cooldownBar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+#cooldownFill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#0055ff);border-radius:2px;transition:width .1s linear}
+
+footer{border-top:1px solid var(--border);padding:14px 0;text-align:center;color:var(--muted);font-size:11px;letter-spacing:2px;margin-top:10px}
+#toast{position:fixed;bottom:26px;right:26px;padding:12px 20px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);opacity:0;transform:translateY(18px);transition:all .3s;z-index:999;pointer-events:none;max-width:280px}
+#toast.show{opacity:1;transform:translateY(0)}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<canvas id="streamCanvas" style="display:none"></canvas>
+
+<script type="module">
+import { initializeApp }  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, push, set, remove, get }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const app = initializeApp({
+  apiKey:"AIzaSyDeqiKHbGzGj7yvW3XT_4WWoa_3qJxbOPk",
+  authDomain:"mysmart-a935d.firebaseapp.com",
+  projectId:"mysmart-a935d",
+  storageBucket:"mysmart-a935d.firebasestorage.app",
+  messagingSenderId:"522678146567",
+  appId:"1:522678146567:web:033a3ab82d87217b3ebca2",
+  databaseURL:"https://mysmart-a935d-default-rtdb.firebaseio.com/"
+});
+const db = getDatabase(app);
+
+// ── Plate Recognizer Config ──────────────────────
+const OCR_ENDPOINT = "https://api.platerecognizer.com/v1/plate-reader/";
+const OCR_TOKEN    = "4e99d443a5e22ed7a87386802faafefab68f9244";
+
+// ── State ────────────────────────────────────────
+let detections=[], stolenDB={}, filterMode='all', search='';
+const OCR_COOLDOWN = 1500;
+let cooldownTimer = null;
+let ocrPending = false;
+
+// ── Helpers ──────────────────────────────────────
+const $= id => document.getElementById(id);
+
+function fmtIST(epochSec) {
+  if (!epochSec) return '—';
+  return new Date(epochSec*1000).toLocaleString('en-IN',{
+    timeZone:'Asia/Kolkata',
+    day:'2-digit',month:'short',year:'numeric',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true
+  }) + ' IST';
+}
+
+function fmtPlate(raw) {
+  if (!raw) return '——————';
+  raw = raw.toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const m = raw.match(/^([A-Z]{2})(\d{1,2})([A-Z]{1,3})(\d{1,4})$/);
+  return m ? `${m[1]} ${m[2]} ${m[3]} ${m[4]}` : raw;
+}
+
+function plateIsStolen(plate) {
+  return !!stolenDB[plate?.replace(/\s/g,'')];
+}
+
+function renderPlate(container, rawPlate, isStolen) {
+  container.innerHTML = `
+    <div class="ind-plate ${isStolen?'stolen':''}">
+      <div class="p-bolt l"></div><div class="p-bolt r"></div>
+      <div class="p-strip">
+        <div class="p-wheel"></div>
+        <span class="p-ind">INDIA · BHARAT</span>
+        <div class="p-wheel"></div>
+      </div>
+      <div class="p-num ${isStolen?'stolen':''}">${fmtPlate(rawPlate)}</div>
+      <div class="p-state">MOTOR VEHICLES ACT 1988</div>
+    </div>`;
+}
+
+// ── OCR Cooldown bar ─────────────────────────────
+function startCooldown() {
+  if (cooldownTimer) clearInterval(cooldownTimer);
+  const start = Date.now();
+  cooldownTimer = setInterval(() => {
+    const pct = Math.min(100, ((Date.now()-start)/OCR_COOLDOWN)*100);
+    $('cooldownFill').style.width = pct+'%';
+    if (pct>=100) { clearInterval(cooldownTimer); cooldownTimer=null; }
+  }, 30);
+}
+
+function setTask(id, active) {
+  const el = $('task_'+id);
+  if (!el) return;
+  el.className = 'task-dot '+(active?'run':'idle');
+  el.style.color = active ? 'var(--accent)' : 'var(--muted)';
+}
+
+// ── Plate Recognizer API ─────────────────────────
+/**
+ * Send an image (File | Blob | base64DataURL) to Plate Recognizer OCR API.
+ * Returns the best plate string or null.
+ */
+async function recognizePlate(imageSource) {
+  try {
+    const formData = new FormData();
+
+    if (imageSource instanceof Blob || imageSource instanceof File) {
+      formData.append('upload', imageSource, 'plate.jpg');
+    } else if (typeof imageSource === 'string' && imageSource.startsWith('data:')) {
+      // Convert base64 data URL to Blob
+      const res   = await fetch(imageSource);
+      const blob  = await res.blob();
+      formData.append('upload', blob, 'plate.jpg');
+    } else {
+      // Treat as a URL
+      formData.append('upload_url', imageSource);
+    }
+
+    // Optional: restrict to Indian region for better accuracy
+    formData.append('regions', 'in');
+
+    const response = await fetch(OCR_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Authorization': `Token ${OCR_TOKEN}` },
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('Plate Recognizer error:', response.status, errText);
+      toast(`❌ OCR API error ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log('Plate Recognizer response:', data);
+
+    if (data.results && data.results.length > 0) {
+      // Pick the result with highest confidence
+      const best = data.results.reduce((a,b) =>
+        (b.score > a.score ? b : a), data.results[0]);
+      return {
+        plate: best.plate.toUpperCase().replace(/[^A-Z0-9]/g,''),
+        confidence: Math.round((best.score || 0) * 100),
+        region: best.region?.code || '—'
+      };
+    }
+    return null;
+  } catch (err) {
+    console.error('OCR fetch error:', err);
+    toast('❌ OCR request failed');
+    return null;
+  }
+}
+
+// ── OCR from uploaded image ──────────────────────
+window.handleOcrUpload = async (input) => {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = $('ocrPreviewImg');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    $('ocrPreviewPH').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+
+  // Show spinner
+  setOcrStatus('scanning');
+
+  const result = await recognizePlate(file);
+
+  if (result) {
+    $('ocrPlateVal').textContent = fmtPlate(result.plate);
+    $('ocrConfVal').textContent  = `Confidence: ${result.confidence}%`;
+    $('ocrRegionVal').textContent= `Region: ${result.region.toUpperCase()}`;
+    setOcrStatus('done');
+    $('ocrAutoFill').dataset.plate = result.plate;
+    $('ocrAutoFill').style.display = 'inline-flex';
+    toast(`✔ OCR: ${fmtPlate(result.plate)} (${result.confidence}%)`);
+  } else {
+    $('ocrPlateVal').textContent = 'NOT DETECTED';
+    $('ocrConfVal').textContent  = 'No plate found in image';
+    $('ocrRegionVal').textContent= '';
+    $('ocrAutoFill').style.display = 'none';
+    setOcrStatus('idle');
+    toast('⚠ No plate detected in image');
+  }
+};
+
+function setOcrStatus(state) {
+  const spinner = $('ocrSpinner');
+  const txt     = $('ocrStatusTxt');
+  if (state === 'scanning') {
+    spinner.style.display = 'block';
+    txt.textContent = 'SCANNING WITH PLATE RECOGNIZER…';
+  } else if (state === 'done') {
+    spinner.style.display = 'none';
+    txt.textContent = 'OCR COMPLETE';
+  } else {
+    spinner.style.display = 'none';
+    txt.textContent = 'READY';
+  }
+}
+
+// Auto-fill plate from OCR into test input and push to Firebase
+window.ocrAutoFill = () => {
+  const plate = $('ocrAutoFill').dataset.plate;
+  if (!plate) return;
+  $('testInput').value = plate;
+  toast('✔ Plate filled into test renderer');
+};
+
+// ── Capture frame from live stream and run OCR ──
+window.captureAndOcr = async () => {
+  const img = $('streamImg');
+  if (!img.src || img.style.display==='none') { toast('No live stream connected'); return; }
+  if (ocrPending) { toast('OCR in progress…'); return; }
+  ocrPending = true;
+  $('captureBtn').textContent = '⏳ SCANNING…';
+
+  try {
+    const canvas  = $('streamCanvas');
+    canvas.width  = img.naturalWidth  || 640;
+    canvas.height = img.naturalHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+    toast('📡 Sending frame to Plate Recognizer…');
+    const result = await recognizePlate(dataUrl);
+
+    if (result) {
+      const ts = Math.floor(Date.now()/1000);
+      const stl = !!stolenDB[result.plate];
+
+      renderPlate($('latestPlateArea'), result.plate, stl);
+      $('latestTime').textContent = '🕐 '+fmtIST(ts);
+      $('latestBadge').textContent = stl ? '⚠ STOLEN VEHICLE' : '✔ CLEAR';
+      $('latestBadge').className   = 'p-badge '+(stl?'stolen':'ok');
+
+      await push(ref(db,'anpr/detections'),{plate:result.plate,timestamp:ts,camera:'LIVE_STREAM',status:'detected',confidence:result.confidence});
+      await set(ref(db,'anpr/latest_plate'),{plate:result.plate,timestamp:ts});
+
+      if (stl) {
+        await push(ref(db,'anpr/alerts'),{plate:result.plate,type:'STOLEN_VEHICLE',timestamp:ts,acknowledged:false});
+        await set(ref(db,'anpr/active_alert'),true);
+        await set(ref(db,'anpr/active_alert_plate'),result.plate);
+        showAlert(result.plate);
+      }
+
+      startCooldown();
+      setTask('ocr', true);
+      setTimeout(() => setTask('ocr', false), OCR_COOLDOWN);
+      toast(`✔ ${fmtPlate(result.plate)} — ${result.confidence}% confidence`);
+    } else {
+      toast('⚠ No plate detected in frame');
+    }
+  } finally {
+    ocrPending = false;
+    $('captureBtn').textContent = '📷 CAPTURE & OCR';
+  }
+};
+
+// ── Firebase listeners ───────────────────────────
+onValue(ref(db,'anpr/latest_plate'), snap => {
+  const d = snap.val();
+  if (!d) return;
+  const stl = plateIsStolen(d.plate);
+  renderPlate($('latestPlateArea'), d.plate, stl);
+  $('latestTime').textContent = '🕐 '+fmtIST(d.timestamp);
+  $('latestBadge').textContent = stl ? '⚠ STOLEN VEHICLE' : '✔ CLEAR';
+  $('latestBadge').className = 'p-badge '+(stl?'stolen':'ok');
+  $('camPill').className = 'pill ok';
+  $('camPill').innerHTML = '<div class="dot"></div> CAM ONLINE';
+  startCooldown();
+  setTask('ocr', true);
+  setTimeout(() => setTask('ocr', false), OCR_COOLDOWN);
+});
+
+onValue(ref(db,'anpr/detections'), snap => {
+  const data = snap.val()||{};
+  detections = Object.entries(data).map(([k,v])=>({key:k,...v})).sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+  updateStats(); renderTable();
+});
+
+onValue(ref(db,'stolen_vehicles'), snap => {
+  stolenDB = snap.val()||{};
+  renderStolenList(); renderTable(); updateStats();
+});
+
+onValue(ref(db,'anpr/active_alert'), snap => {
+  if (snap.val()) {
+    get(ref(db,'anpr/active_alert_plate')).then(s => {
+      const p = s.val(); if (p) showAlert(p);
+    });
+  } else { $('alertBanner').style.display='none'; }
+});
+
+onValue(ref(db,'anpr/stream_url'), snap => {
+  const u = snap.val(); if (u) $('streamUrl').value = u;
+});
+
+// Init task indicators
+['cap','ocr','wifi'].forEach(t => setTask(t, true));
+setOcrStatus('idle');
+
+// ── Stats ─────────────────────────────────────────
+function updateStats() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  $('statTotal').textContent  = detections.length;
+  $('statToday').textContent  = detections.filter(d=>(d.timestamp||0)*1000>=today.getTime()).length;
+  $('statStolen').textContent = detections.filter(d=>plateIsStolen(d.plate)).length;
+  $('statDB').textContent     = Object.keys(stolenDB).length;
+  $('statCooldown').textContent = OCR_COOLDOWN+'ms';
+}
+
+// ── Table ─────────────────────────────────────────
+function renderTable() {
+  let rows = detections;
+  if (search) rows = rows.filter(d=>d.plate?.toLowerCase().replace(/\s/g,'').includes(search));
+  if (filterMode==='stolen') rows = rows.filter(d=>plateIsStolen(d.plate));
+  const tb = $('tbody');
+  if (!rows.length) {
+    tb.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="ei">📡</div><div class="et">NO DETECTIONS YET</div></div></td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.slice(0,120).map(d => {
+    const stl = plateIsStolen(d.plate);
+    const conf = d.confidence ? `<span style="color:var(--muted);font-size:11px">${d.confidence}%</span>` : '<span style="color:var(--muted);font-size:11px">—</span>';
+    return `<tr>
+      <td class="pc ${stl?'stolen':''}">${fmtPlate(d.plate)}</td>
+      <td><span class="sdot ${stl?'st':'ok'}"></span>${stl
+        ?'<span style="color:var(--danger);font-weight:700">STOLEN</span>'
+        :'<span style="color:var(--success)">Clear</span>'}</td>
+      <td class="tc">${fmtIST(d.timestamp)}</td>
+      <td style="color:var(--muted);font-size:12px">${d.camera||'ENTRY_CAM_1'}</td>
+      <td>${conf}</td>
+      <td>${stl
+        ?'<span style="color:var(--danger);font-size:11px;font-weight:700;letter-spacing:1px">⚠ ALERT FLAGGED</span>'
+        :'<span style="color:var(--muted);font-size:11px">—</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderStolenList() {
+  const keys = Object.keys(stolenDB);
+  $('stolenList').innerHTML = keys.length
+    ? keys.map(p=>`<div class="si"><span>${p}</span><button class="si-rm" onclick="removeStolenPlate('${p}')">✕</button></div>`).join('')
+    : `<div style="color:var(--muted);font-size:12px;text-align:center;padding:14px">No stolen plates registered</div>`;
+}
+
+function showAlert(plate) {
+  $('alertPlate').textContent = fmtPlate(plate);
+  $('alertMsg').textContent   = `Vehicle ${plate} matches stolen/missing database — immediate action required.`;
+  $('alertBanner').style.display = 'block';
+}
+
+// ── Window actions ────────────────────────────────
+window.addStolenPlate = async () => {
+  const v=$('stolenInput').value.toUpperCase().replace(/[^A-Z0-9]/g,'').trim();
+  if (v.length<6){toast('Enter a valid plate (min 6 chars)');return;}
+  await set(ref(db,`stolen_vehicles/${v}`),{addedAt:Math.floor(Date.now()/1000),reason:'manual_entry'});
+  $('stolenInput').value=''; toast('⚠ Added: '+v);
+};
+
+window.removeStolenPlate = async plate => {
+  await remove(ref(db,`stolen_vehicles/${plate}`)); toast('Removed: '+plate);
+};
+
+window.acknowledgeAlert = async () => {
+  await set(ref(db,'anpr/active_alert'),false);
+  $('alertBanner').style.display='none'; toast('Alert acknowledged');
+};
+
+window.connectStream = () => {
+  const url=$('streamUrl').value.trim();
+  if (!url){toast('Paste the stream URL from Serial Monitor');return;}
+  const img=$('streamImg');
+  img.src=url; img.style.display='block';
+  $('streamPH').style.display='none'; $('liveBadge').style.display='block';
+  $('captureBtn').style.display='block';
+  img.onerror=()=>{toast('❌ Stream failed — check URL & WiFi');disconnectStream();};
+  set(ref(db,'anpr/stream_url'),url);
+  toast('📡 Connecting…');
+};
+
+window.disconnectStream = () => {
+  $('streamImg').src=''; $('streamImg').style.display='none';
+  $('streamPH').style.display='block'; $('liveBadge').style.display='none';
+  $('captureBtn').style.display='none';
+};
+
+window.previewPlate = () => {
+  const raw=$('testInput').value.trim();
+  if (!raw){toast('Enter a plate number first');return;}
+  const stl=!!stolenDB[raw.toUpperCase().replace(/[^A-Z0-9]/g,'')];
+  renderPlate($('testPlateArea'),raw,stl);
+  toast(stl?'⚠ Plate is in stolen database!':'✔ Plate preview rendered');
+};
+
+window.submitTestPlate = async () => {
+  const raw=$('testInput').value.toUpperCase().replace(/[^A-Z0-9]/g,'').trim();
+  if (raw.length<6){toast('Enter a valid plate');return;}
+  const ts=Math.floor(Date.now()/1000);
+  await push(ref(db,'anpr/detections'),{plate:raw,timestamp:ts,camera:'MANUAL_TEST',status:'detected'});
+  await set(ref(db,'anpr/latest_plate'),{plate:raw,timestamp:ts});
+  if (stolenDB[raw]) {
+    await push(ref(db,'anpr/alerts'),{plate:raw,type:'STOLEN_VEHICLE',timestamp:ts,acknowledged:false});
+    await set(ref(db,'anpr/active_alert'),true);
+    await set(ref(db,'anpr/active_alert_plate'),raw);
+  }
+  toast('✔ Submitted: '+raw);
+};
+
+window.setFilter = (mode, el) => {
+  filterMode=mode;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on'); renderTable();
+};
+
+window.doSearch = v => { search=v.toLowerCase().replace(/\s/g,''); renderTable(); };
+
+function toast(msg) {
+  const t=$('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// IST clock
+setInterval(()=>{
+  $('clock').textContent = new Date().toLocaleString('en-IN',{
+    timeZone:'Asia/Kolkata',weekday:'short',day:'2-digit',month:'short',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true
+  })+' IST';
+},1000);
+
+updateStats();
+</script>
+
+<!-- HEADER -->
+<header>
+  <div class="wrap">
+    <div class="hdr">
+      <div class="logo">
+        <div class="logo-icon">🚘</div>
+        <div>
+          <h1>ANPR DASHBOARD</h1>
+          <p>ESP32-CAM · FreeRTOS Dual-Core · Firebase RTDB</p>
+        </div>
+      </div>
+      <div class="hdr-right">
+        <div class="pill ok" style="border-color:rgba(0,200,240,.4);color:var(--accent);background:rgba(0,200,240,.07)">
+          <div class="dot" style="background:var(--accent)"></div> PLATE RECOGNIZER API
+        </div>
+        <div class="pill off" id="camPill"><div class="dot"></div> CONNECTING</div>
+        <div style="font-family:'Share Tech Mono';font-size:11px;color:var(--muted)" id="clock">—</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ALERT -->
+<div id="alertBanner">
+  <div class="alert-row">
+    <span class="alert-ico">🚨</span>
+    <div>
+      <div class="alert-title">⚠ STOLEN VEHICLE DETECTED</div>
+      <div class="alert-plate" id="alertPlate">——————</div>
+      <div class="alert-msg" id="alertMsg"></div>
+    </div>
+    <button class="ack" onclick="acknowledgeAlert()">ACKNOWLEDGE</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="sc"><div class="scan-line"></div>
+    <div class="sc-lbl">Total Detections</div>
+    <div class="sc-val" id="statTotal">0</div><div class="sc-sub">All time</div>
+  </div>
+  <div class="sc s">
+    <div class="sc-lbl">Today's Scans</div>
+    <div class="sc-val" id="statToday" style="color:var(--success)">0</div><div class="sc-sub">Since midnight IST</div>
+  </div>
+  <div class="sc d">
+    <div class="sc-lbl">Stolen Matches</div>
+    <div class="sc-val" id="statStolen" style="color:var(--danger)">0</div><div class="sc-sub">Flagged alerts</div>
+  </div>
+  <div class="sc w">
+    <div class="sc-lbl">Stolen DB</div>
+    <div class="sc-val" id="statDB" style="color:var(--warn)">0</div><div class="sc-sub">Registered plates</div>
+  </div>
+  <div class="sc p">
+    <div class="sc-lbl">OCR Cooldown</div>
+    <div class="sc-val" id="statCooldown" style="color:#aa55ff">1500ms</div><div class="sc-sub">Per-capture gap</div>
+  </div>
+</div>
+
+<!-- FREERTOS TASK STATUS BAR -->
+<div class="task-bar">
+  <span style="font-family:'Orbitron';font-size:10px;color:var(--muted);letter-spacing:2px;white-space:nowrap">FREERTOS TASKS</span>
+  <div class="task-sep"></div>
+  <div class="task-item" style="color:var(--accent)">
+    <div class="task-dot run" id="task_cap" style="color:var(--accent)"></div>
+    CORE 0 · captureTask
+  </div>
+  <div class="task-sep"></div>
+  <div class="task-item" style="color:var(--success)">
+    <div class="task-dot run" id="task_ocr" style="color:var(--success)"></div>
+    CORE 1 · ocrTask
+  </div>
+  <div class="task-sep"></div>
+  <div class="task-item" style="color:var(--warn)">
+    <div class="task-dot run" id="task_wifi" style="color:var(--warn)"></div>
+    CORE 1 · wifiWatchdog
+  </div>
+  <div class="task-sep"></div>
+  <div style="flex:1;display:flex;align-items:center;gap:10px">
+    <span style="font-family:'Orbitron';font-size:9px;color:var(--muted);letter-spacing:1px;white-space:nowrap">OCR COOLDOWN</span>
+    <div id="cooldownBar"><div id="cooldownFill"></div></div>
+  </div>
+</div>
+
+<!-- ── PLATE RECOGNIZER OCR PANEL ── -->
+<div class="ocr-panel">
+  <div class="card-title">
+    Plate Recognizer OCR
+    <span class="api-badge">● platerecognizer.com · ACTIVE</span>
+  </div>
+  <div class="ocr-row">
+
+    <!-- Dropzone -->
+    <div class="ocr-dropzone" id="ocrDropzone"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="event.preventDefault();this.classList.remove('drag');handleOcrUpload({files:event.dataTransfer.files})">
+      <input type="file" accept="image/*" onchange="handleOcrUpload(this)">
+      <div class="dz-ico">📂</div>
+      <div class="dz-lbl">DROP IMAGE OR CLICK TO UPLOAD</div>
+      <div class="dz-sub">JPEG · PNG · WEBP · Supports any angle</div>
+    </div>
+
+    <!-- Preview -->
+    <div class="ocr-preview">
+      <span class="ph" id="ocrPreviewPH">NO IMAGE</span>
+      <img id="ocrPreviewImg" alt="OCR Preview">
+    </div>
+
+    <!-- Result -->
+    <div class="ocr-result">
+      <div class="r-lbl">Detected Plate</div>
+      <div class="r-plate" id="ocrPlateVal">——</div>
+      <div class="r-conf" id="ocrConfVal">Upload an image to scan</div>
+      <div class="r-region" id="ocrRegionVal"></div>
+      <div class="ocr-status">
+        <div class="spinner" id="ocrSpinner"></div>
+        <span id="ocrStatusTxt">READY</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="ocr-actions">
+      <button class="btn btn-a btn-sm" id="ocrAutoFill" style="display:none;gap:7px" onclick="ocrAutoFill()">
+        ↳ FILL INTO RENDERER
+      </button>
+      <button class="btn btn-g btn-sm" id="ocrPushBtn" style="display:none" onclick="ocrPushToFirebase()">
+        ⬆ PUSH TO FIREBASE
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- STREAM BAR -->
+<div class="stream-bar">
+  <div style="flex:1;min-width:220px">
+    <label>📡 ESP32-CAM STREAM URL <span style="opacity:.5;font-weight:400">(copy from Serial Monitor)</span></label>
+    <input id="streamUrl" placeholder="http://192.168.x.x:81/stream">
+  </div>
+  <button class="btn btn-a btn-sm" onclick="connectStream()">▶ CONNECT STREAM</button>
+  <button onclick="disconnectStream()" style="padding:9px 14px;background:none;border:1px solid var(--border);border-radius:7px;color:var(--muted);font-family:'Rajdhani',sans-serif;font-size:13px;cursor:pointer">✕ Disconnect</button>
+</div>
+
+<!-- MAIN GRID -->
+<div class="grid2">
+
+  <!-- LEFT -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <div class="card" style="padding:18px">
+      <div class="card-title">Live Camera Feed</div>
+      <div id="streamBox">
+        <div id="streamPH">
+          <div class="ico">📷</div>
+          <div class="lbl">STREAM NOT CONNECTED</div>
+          <div class="sub">Enter URL above from Serial Monitor</div>
+        </div>
+        <img id="streamImg" alt="Live Feed" crossorigin="anonymous">
+        <div id="liveBadge">● LIVE</div>
+        <button id="captureBtn" onclick="captureAndOcr()">📷 CAPTURE & OCR</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Latest Detection</div>
+      <div class="plate-showcase">
+        <div id="latestPlateArea" style="display:flex;justify-content:center">
+          <div class="ind-plate">
+            <div class="p-bolt l"></div><div class="p-bolt r"></div>
+            <div class="p-strip"><div class="p-wheel"></div><span class="p-ind">INDIA · BHARAT</span><div class="p-wheel"></div></div>
+            <div class="p-num" style="color:#555">— — — —</div>
+            <div class="p-state">AWAITING DETECTION</div>
+          </div>
+        </div>
+        <div class="p-ts" id="latestTime">No detection yet</div>
+        <div class="p-badge wait" id="latestBadge">WAITING</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right-panel">
+
+    <div class="card">
+      <div class="card-title">Stolen Vehicle DB</div>
+      <div class="fgroup">
+        <label class="flabel">Add stolen / missing plate</label>
+        <input type="text" class="finput" id="stolenInput" placeholder="MH12AB1234" maxlength="12">
+      </div>
+      <button class="btn btn-d" onclick="addStolenPlate()">⚠ ADD TO DATABASE</button>
+      <div class="divider"></div>
+      <div class="flabel" style="margin-bottom:10px">Registered Plates</div>
+      <div class="stolen-list" id="stolenList">
+        <div style="color:var(--muted);font-size:12px;text-align:center;padding:14px">Loading...</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Test Plate Renderer</div>
+      <div class="test-row">
+        <div class="test-grp">
+          <label class="flabel">Enter plate number</label>
+          <input type="text" class="finput" id="testInput" placeholder="MP09CG4321" maxlength="13"
+            oninput="this.value=this.value.toUpperCase()">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+        <button class="btn btn-a btn-sm" onclick="previewPlate()">👁 PREVIEW</button>
+        <button class="btn btn-g btn-sm" onclick="submitTestPlate()">⬆ PUSH TO FIREBASE</button>
+      </div>
+      <div class="preview-box">
+        <div id="testPlateArea">
+          <div class="ind-plate">
+            <div class="p-bolt l"></div><div class="p-bolt r"></div>
+            <div class="p-strip"><div class="p-wheel"></div><span class="p-ind">INDIA · BHARAT</span><div class="p-wheel"></div></div>
+            <div class="p-num" style="color:#444">PREVIEW</div>
+            <div class="p-state">MOTOR VEHICLES ACT 1988</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- DETECTION LOG -->
+<div class="card" style="margin-bottom:24px">
+  <div class="card-title">Detection Log</div>
+  <div class="tbl-ctrl">
+    <input type="text" class="srch" placeholder="SEARCH PLATE..." oninput="doSearch(this.value)">
+    <button class="fbtn on" onclick="setFilter('all',this)">All</button>
+    <button class="fbtn" onclick="setFilter('stolen',this)" style="color:var(--danger)">Stolen Only</button>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Number Plate</th><th>Status</th>
+        <th>Timestamp (IST)</th><th>Camera / Source</th><th>Confidence</th><th>Flag</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr><td colspan="6"><div class="empty"><div class="ei">📡</div><div class="et">CONNECTING TO FIREBASE...</div></div></td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    ANPR SMARTCAM &nbsp;·&nbsp; ESP32-CAM FREERTOS DUAL-CORE &nbsp;·&nbsp; VGA 640×480 @ 20MHz &nbsp;·&nbsp; PLATE RECOGNIZER API &nbsp;·&nbsp; NTP IST &nbsp;·&nbsp; MYSMART-A935D
+  </div>
+</footer>
+<div id="toast"></div>
+</body>
+</html>
